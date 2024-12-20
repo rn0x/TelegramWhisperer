@@ -35,7 +35,7 @@ export default async function handleMyChatMember(ctx) {
                 username: new_chat_member?.user?.username || 'N/A',
                 firstName: new_chat_member?.user?.first_name || 'N/A',
                 lastName: new_chat_member?.user?.last_name || 'N/A',
-                type: new_chat_member?.user?.type || 'N/A',
+                type: ctx?.chat?.type || 'N/A',
                 languageCode: new_chat_member?.user?.language_code || 'N/A',
             };
             break;
