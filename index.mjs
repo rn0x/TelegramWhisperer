@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { downloadFile, deleteFile } from './utils/fileManager.mjs';
 import { processAudio } from './utils/whisperService.mjs';
+import handleMyChatMember from './handleMyChatMember.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -188,6 +189,8 @@ bot.start((ctx) => {
 const stage = new Scenes.Stage([languageScene, taskScene]);
 bot.use(stage.middleware());
 
+bot.on('my_chat_member', async (ctx) => handleMyChatMember(ctx));
+
 // استقبال الصوت أو الفيديو
 bot.on(['voice', 'video'], async (ctx) => {
     const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id;
@@ -225,6 +228,7 @@ bot.on(['voice', 'video'], async (ctx) => {
         ctx.reply('❌ An error occurred while uploading the file. Try again.');
     }
 });
+
 
 bot.catch((error) => {
     console.error('An error occurred:', error);
