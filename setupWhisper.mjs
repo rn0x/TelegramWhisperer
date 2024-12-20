@@ -3,15 +3,17 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
-import sevenBin from '7zip-bin';  // إضافة مكتبة 7zip-bin
-import node7z from 'node-7z';  // استيراد مكتبة node-7z
+import sevenBin from '7zip-bin';
+import node7z from 'node-7z';
+import { exec } from 'child_process'; // استيراد exec لتنفيذ الأوامر
 
-const { extractFull } = node7z;  // استخدام الوظيفة من node-7z
+const { extractFull } = node7z;  // استخدام الدوال المطلوبة
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const setupWhisper = async () => {
+// إعدادات التحميل بناءً على النظام
+const getSystemConfig = () => {
   const platform = os.platform();
   let downloadUrl = '';
   let archiveName = '';
@@ -27,103 +29,166 @@ const setupWhisper = async () => {
     extractPath = path.join(__dirname, 'bin', 'linux');
   } else {
     console.error('Unsupported platform');
-    return;
+    return null;
   }
 
-  const filePath = path.join(__dirname, archiveName);
-  const binPath = path.join(__dirname, 'bin');
-  const folderExists = await fs.pathExists(binPath);
+  return { platform, downloadUrl, archiveName, extractPath };
+};
 
-  if (!folderExists) {
-    console.log('The "bin" directory does not exist. Creating it now...');
-    await fs.mkdirp(binPath);
-    console.log('The "bin" directory has been created.');
+// تحقق من وجود مجلد
+const ensureDirectoryExists = async (dirPath) => {
+  const dirExists = await fs.pathExists(dirPath);
+  if (!dirExists) {
+    console.log(`The directory does not exist. Creating it now: ${dirPath}`);
+    await fs.mkdirp(dirPath);
+    console.log(`Directory created: ${dirPath}`);
   } else {
-    console.log('The "bin" directory already exists.');
+    console.log(`The directory already exists: ${dirPath}`);
   }
+  return dirExists;
+};
 
-  const extractedFolder = path.join(extractPath, 'Faster-Whisper-XXL');
-  const archiveExists = await fs.pathExists(filePath);
+// تحميل الأرشيف
+const downloadArchive = async (downloadUrl, filePath) => {
+  console.log('Downloading file...');
+  try {
+    const response = await axios({
+      url: downloadUrl,
+      method: 'GET',
+      responseType: 'stream'
+    });
 
-  if (await fs.pathExists(extractedFolder)) {
-    console.log('Folder already extracted, skipping download and extraction.');
-    return;
-  }
+    const writer = fs.createWriteStream(filePath);
+    let totalLength = 0;
+    const totalSize = response.headers['content-length'];
 
-  if (!archiveExists) {
-    console.log('Downloading file...');
-    try {
-      const response = await axios({
-        url: downloadUrl,
-        method: 'GET',
-        responseType: 'stream'
-      });
+    response.data.on('data', (chunk) => {
+      totalLength += chunk.length;
+      const percent = ((totalLength / totalSize) * 100).toFixed(2);
+      process.stdout.write(`Downloading: ${percent}%\r`);
+    });
 
-      const writer = fs.createWriteStream(filePath);
+    response.data.pipe(writer);
 
-      let totalLength = 0;
-      const totalSize = response.headers['content-length']; // الحجم الإجمالي للملف
-
-      response.data.on('data', (chunk) => {
-        totalLength += chunk.length; // إضافة حجم الدفعة المستلمة
-        const percent = ((totalLength / totalSize) * 100).toFixed(2); // حساب النسبة المئوية
-        process.stdout.write(`Downloading: ${percent}%\r`); // عرض التقدم في نفس السطر
-      });
-
-      response.data.pipe(writer);
-
-      writer.on('finish', async () => {
+    return new Promise((resolve, reject) => {
+      writer.on('finish', () => {
         console.log('Download finished.');
-        if (await fs.pathExists(filePath)) {
-          console.log('File downloaded successfully.');
-          try {
-            console.log('Extracting archive...');
-            const pathTo7zip = sevenBin.path7za;  // المسار إلى 7z من 7zip-bin
-            await extractFull(filePath, extractPath, {
-              $bin: pathTo7zip  // تمرير المسار إلى 7z
-            });
-
-            if (await fs.pathExists(extractedFolder)) {
-              const renamedFolder = path.join(extractPath, platform === 'win32' ? 'win' : 'linux');
-              await fs.rename(extractedFolder, renamedFolder);
-              console.log('Folder renamed to: ', renamedFolder);
-            } else {
-              console.error('Extraction failed or folder not found.');
-            }
-          } catch (error) {
-            console.error('Error extracting archive:', error);
-          }
-        } else {
-          console.error('File download failed.');
-        }
+        resolve();
       });
 
       writer.on('error', (err) => {
-        console.error('Download error:', err);
+        reject(err);
       });
-    } catch (error) {
-      console.error('Error downloading file:', error);
-    }
-  } else {
-    console.log('Archive file already exists in root, skipping download.');
-    try {
-      console.log('Extracting existing archive...');
-      const pathTo7zip = sevenBin.path7za;  // المسار إلى 7z من 7zip-bin
-      await extractFull(filePath, extractPath, {
-        $bin: pathTo7zip  // تمرير المسار إلى 7z
-      });
-
-      if (await fs.pathExists(extractedFolder)) {
-        const renamedFolder = path.join(extractPath, platform === 'win32' ? 'win' : 'linux');
-        await fs.rename(extractedFolder, renamedFolder);
-        console.log('Folder renamed to: ', renamedFolder);
-      } else {
-        console.error('Extraction failed or folder not found.');
-      }
-    } catch (error) {
-      console.error('Error extracting existing archive:', error);
-    }
+    });
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    throw error;
   }
 };
 
+// استخراج الأرشيف
+const extractArchive = async (filePath, extractPath) => {
+  try {
+    console.log('Extracting archive...');
+
+    // استخدم Promise حول دالة extractFull لجعلها متوافقة مع async/await
+    await new Promise((resolve, reject) => {
+      const extractionStream = extractFull(filePath, extractPath, { $bin: sevenBin.path7za });
+
+      extractionStream.on('end', () => {
+        console.log('Extraction completed.');
+        resolve(); // نحل الوعد عندما تنتهي العملية
+      });
+
+      extractionStream.on('error', (error) => {
+        console.error('Error extracting archive:', error);
+        reject(error); // نرفض الوعد في حال حدوث خطأ
+      });
+    });
+  } catch (error) {
+    console.error('Error in extraction process:', error);
+    throw error; // إعادة رمي الخطأ ليتم معالجته في مكان آخر
+  }
+};
+
+// حذف ملف الأرشيف
+const removeArchive = async (filePath) => {
+  try {
+    await fs.remove(filePath);
+    console.log('Archive file deleted successfully.');
+  } catch (error) {
+    console.error('Error deleting archive file:', error);
+    throw error;
+  }
+};
+
+// دالة لإعطاء صلاحية التنفيذ للمجلد
+const grantExecutionPermission = async (dirPath) => {
+  try {
+    console.log(`Granting execute permissions to ${dirPath}...`);
+    // تنفيذ الأمر chmod باستخدام exec
+    await new Promise((resolve, reject) => {
+      exec(`chmod -R +x ${dirPath}`, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Error executing chmod: ${stderr}`);
+          reject(error);
+        } else {
+          console.log(`Permissions granted successfully: ${stdout}`);
+          resolve();
+        }
+      });
+    });
+  } catch (error) {
+    console.error('Error granting execution permission:', error);
+    throw error;
+  }
+};
+
+// الوظيفة الرئيسية لضبط الإعداد
+const setupWhisper = async () => {
+  const config = getSystemConfig();
+  if (!config) return;
+
+  const { platform, downloadUrl, archiveName, extractPath } = config;
+  const filePath = path.join(__dirname, archiveName);
+  const binPath = path.join(__dirname, 'bin');
+
+  try {
+
+    // تحقق إذا كان المجلد المستخرج موجودًا بالفعل
+    const folderExists = await fs.pathExists(extractPath);
+    if (folderExists) {
+      console.log('Extracted folder already exists, skipping download and extraction.');
+      return; // إذا كان المجلد موجودًا بالفعل، نتخطى التحميل والاستخراج
+    }
+
+    // تحقق من وجود مجلدات bin و win/linux
+    await ensureDirectoryExists(binPath);
+    await ensureDirectoryExists(extractPath);
+
+    // تحقق إذا كان الأرشيف موجودًا بالفعل
+    const archiveExists = await fs.pathExists(filePath);
+    if (!archiveExists) {
+      console.log('Archive does not exist. Proceeding to download...');
+      await downloadArchive(downloadUrl, filePath);
+    } else {
+      console.log('Archive file already exists, skipping download.');
+    }
+
+    // استخراج الأرشيف
+    await extractArchive(filePath, extractPath);
+
+    // إذا كان النظام هو Linux، نمنح صلاحية التنفيذ
+    if (platform === 'linux') {
+      await grantExecutionPermission(binPath);
+    }
+
+    // حذف الأرشيف بعد الاستخراج
+    await removeArchive(filePath);
+  } catch (error) {
+    console.error('Error in setup process:', error);
+  }
+};
+
+// تشغيل الدالة للإعداد
 setupWhisper();
