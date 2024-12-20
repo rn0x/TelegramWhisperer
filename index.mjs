@@ -18,6 +18,8 @@ const supportedLanguages = [
     'sl', 'sn', 'so', 'sq', 'sr', 'su', 'sv', 'sw', 'ta', 'te', 'tg', 'th', 'tk', 'tl', 'tr', 'tt', 'uk', 'ur', 'uz',
     'vi', 'yi', 'yo', 'yue', 'zh',
 ];
+// الحد الأقصى المسموح به للمدة (بالدقائق)
+const MAX_DURATION_MINUTES = 5; // على سبيل المثال، 5 دقائق
 
 // إنشاء مشهد لاختيار اللغة
 const languageScene = new Scenes.BaseScene('languageScene');
@@ -191,12 +193,23 @@ bot.on(['voice', 'video'], async (ctx) => {
     const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id;
     const fileType = ctx.message.voice ? 'voice' : 'video';
 
+    // الحصول على مدة الصوت أو الفيديو
+    const duration = ctx.message.voice?.duration || ctx.message.video?.duration; // بالثواني
+
+    // تحقق إذا كانت المدة تتجاوز الحد المسموح به
+    if (duration > MAX_DURATION_MINUTES * 60) {
+        return ctx.reply(
+            `❌ The file is too long. The maximum allowed duration is ${MAX_DURATION_MINUTES} minutes. Please upload a shorter file.`,
+            { reply_to_message_id: ctx?.message?.message_id }
+        );
+    }
+
     try {
         const fileLink = await ctx.telegram.getFileLink(fileId);
         const downloadsDir = path.join(__dirname, 'downloads');
         const filePath = path.join(
             downloadsDir,
-            `${fileId}.${fileType === 'voice' ? 'mp3' : 'mp4'}`
+            `${fileId}.${fileType === 'voice' ? 'mp3' : 'mp4'}` // تحديد الامتداد بناءً على نوع الملف
         );
 
         // تنزيل الملف
