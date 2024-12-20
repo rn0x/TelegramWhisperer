@@ -10,8 +10,8 @@ export default async function handleMyChatMember(ctx) {
     const chatMember = ctx?.update?.my_chat_member;
     if (!chatMember) return;
 
-    const { new_chat_member, old_chat_member } = chatMember;
-    const userId = new_chat_member?.user?.id || old_chat_member?.user?.id;
+    const { new_chat_member } = chatMember;
+    const userId = ctx?.chat?.id || ctx?.from?.id;
 
     if (!userId) return;
 
