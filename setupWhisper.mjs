@@ -60,6 +60,16 @@ const setupWhisper = async () => {
       });
 
       const writer = fs.createWriteStream(filePath);
+
+      let totalLength = 0;
+      const totalSize = response.headers['content-length']; // الحجم الإجمالي للملف
+
+      response.data.on('data', (chunk) => {
+        totalLength += chunk.length; // إضافة حجم الدفعة المستلمة
+        const percent = ((totalLength / totalSize) * 100).toFixed(2); // حساب النسبة المئوية
+        process.stdout.write(`Downloading: ${percent}%\r`); // عرض التقدم في نفس السطر
+      });
+
       response.data.pipe(writer);
 
       writer.on('finish', async () => {
