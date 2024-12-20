@@ -1,16 +1,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import { Telegraf, session, Scenes } from 'telegraf';
-import fs from 'fs-extra';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { downloadFile, deleteFile } from './utils/fileManager.mjs';
-import { processAudio } from './utils/whisperService.mjs';
+import { downloadFile } from './utils/fileManager.mjs';
 import handleMyChatMember from './utils/handleMyChatMember.mjs';
 import handleText from './utils/handleText.mjs';
 import displayMembers from './utils/displayMembers.mjs';
 import getMembersCount from './utils/getMembersCount.mjs'
-import { processFile } from './utils/processFile.mjs';
 import { saveTask } from './utils/taskManager.mjs';
 import { processPendingTasks } from './utils/processPendingTasks.mjs';
 
