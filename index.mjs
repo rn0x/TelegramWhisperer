@@ -26,7 +26,7 @@ const supportedLanguages = [
     'vi', 'yi', 'yo', 'yue', 'zh',
 ];
 // الحد الأقصى المسموح به للمدة (بالدقائق)
-const MAX_DURATION_MINUTES = 5; // على سبيل المثال، 5 دقائق
+const MAX_DURATION_MINUTES = 2; // على سبيل المثال، 2 دقائق
 
 // إنشاء مشهد لاختيار اللغة
 const languageScene = new Scenes.BaseScene('languageScene');
