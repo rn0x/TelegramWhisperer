@@ -10,6 +10,9 @@ import handleMyChatMember from './utils/handleMyChatMember.mjs';
 import handleText from './utils/handleText.mjs';
 import displayMembers from './utils/displayMembers.mjs';
 import getMembersCount from './utils/getMembersCount.mjs'
+import { processFile } from './utils/processFile.mjs';
+import { saveTask } from './utils/taskManager.mjs';
+import { processPendingTasks } from './utils/processPendingTasks.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -85,77 +88,22 @@ taskScene.on('text', async (ctx) => {
         return ctx.scene.leave();
     }
 
-    const options = {
-        audioPath: fileData.filePath,
-        task: ctx.session.task,
+    await ctx.reply('🔄 Processing the file, please wait...', {
+        reply_to_message_id: ctx?.message?.message_id
+    });
+
+    // إضافة المهمة إلى قاعدة البيانات
+    const taskObj = {
+        task_id: fileData.fileId,
+        user_id: fileData.user_id,
+        file_path: fileData.filePath,
         outputFormat: 'txt',
         language: language,
+        task_type: ctx.session.task,//'transcribe' أو 'translate' حسب الاختيار
+        message_id: fileData?.message_id
     };
 
-    try {
-        await ctx.reply('🔄 Processing the file, please wait...', {
-            reply_to_message_id: ctx?.message?.message_id
-        });
-
-        // معالجة الملف باستخدام processAudio
-        const result = await processAudio(options);
-
-        if (result?.path && fs.existsSync(result?.path)) {
-            // إرسال الملف أولاً
-            await ctx.telegram.sendDocument(ctx.chat.id, {
-                source: result.path,
-                filename: path.basename(result.path),
-            }, { reply_to_message_id: ctx?.session?.message_id });
-
-            // قراءة محتوى الملف
-            const fileContent = await fs.readFile(result.path, 'utf-8');
-
-            // تحقق من طول المحتوى
-            if (fileContent.length > 4096) {
-                // إذا كان المحتوى أطول من 4096 حرفًا، نقوم بتقسيمه
-                const chunks = [];
-                let i = 0;
-                while (i < fileContent.length) {
-                    chunks.push(fileContent.slice(i, i + 4096)); // تقسيم إلى أجزاء بطول 4096
-                    i += 4096;
-                }
-
-                // إرسال كل جزء على حدة
-                for (const chunk of chunks) {
-                    await ctx.reply(chunk, {
-                        parse_mode: 'Markdown',
-                        reply_to_message_id: ctx?.session?.message_id
-                    });
-                }
-            } else {
-                // إذا كان المحتوى أقل من الحد الأقصى، يتم إرساله كله في رسالة واحدة
-                await ctx.reply(fileContent,
-                    {
-                        parse_mode: 'Markdown',
-                        reply_to_message_id: ctx?.session?.message_id
-                    }
-                );
-            }
-
-            // حذف الملف المؤقت بعد الإرسال
-            await deleteFile(result.path);
-            await ctx.reply(
-                '✅ The file has been processed successfully!\n' +
-                '👥 [Join our channel](https://t.me/i8xApp) to continue using the bot and get more updates.',
-                {
-                    parse_mode: 'Markdown',
-                    reply_to_message_id: ctx?.session?.message_id,
-                    disable_web_page_preview: true
-                }
-            );
-        } else {
-            await ctx.reply('❌ Error occurred while processing the file.');
-        }
-    } catch (error) {
-        console.error('Error during processing:', error);
-        await ctx.reply('❌ An error occurred while processing the file. Please try again.');
-    }
-
+    await saveTask(taskObj);
     ctx.scene.leave();
 });
 
@@ -201,7 +149,7 @@ bot.on(['voice', 'video'], async (ctx) => {
         await downloadFile(fileLink.href, filePath);
 
         // تخزين بيانات الملف في الجلسة
-        ctx.session.fileData = { filePath, fileType, message_id: ctx?.message?.message_id };
+        ctx.session.fileData = { filePath, fileType, fileId, message_id: ctx?.message?.message_id, user_id: ctx?.message?.chat?.id };
 
         // بدء مشهد اختيار اللغة
         ctx.scene.enter('languageScene');
@@ -245,6 +193,8 @@ bot.catch((error) => {
 
 // تشغيل البوت
 bot.launch();
+
+processPendingTasks(bot);
 
 const startupMessage = `
 🤖 **Bot Startup Information**

@@ -63,25 +63,31 @@ export function validateAudioFileType(filePath, allowedExtensions = ['.wav', '.m
  * @param {string} filePath - مسار حفظ الملف.
  */
 export async function downloadFile(fileLink, filePath) {
+  const dirPath = path.dirname(filePath);
+
   try {
+    // ضمان أن المجلد موجود
+    await ensureDirectoryExists(dirPath);
+
+    // إرسال طلب لتحميل الملف
     const response = await axios({
       url: fileLink,
       method: 'GET',
       responseType: 'stream',
     });
 
-    // ضمان أن المجلد موجود
-    const dirPath = path.dirname(filePath);
-    await ensureDirectoryExists(dirPath);
+    // أنشئ Stream لكتابة البيانات إلى الملف
+    const writer = fs.createWriteStream(filePath);
 
-    // فتح الملف وحفظه
-    const writer = await fs.createWriteStream(filePath);  // استخدام fs-extra لإنشاء Stream
+    // إنشاء Pipe بين استجابة Axios والملف
     response.data.pipe(writer);
 
-    return new Promise((resolve, reject) => {
-      writer.on('finish', resolve);
-      writer.on('error', reject);
+    // ضمان أن عملية الكتابة قد انتهت أو فشلت
+    await new Promise((resolve, reject) => {
+      writer.on('finish', resolve);  // انتهت الكتابة بنجاح
+      writer.on('error', reject);    // حدث خطأ أثناء الكتابة
     });
+
   } catch (error) {
     console.error(`خطأ أثناء تنزيل الملف: ${fileLink}`, error);
     throw error;
