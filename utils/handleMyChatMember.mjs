@@ -15,7 +15,7 @@ export default async function handleMyChatMember(ctx) {
 
     if (!userId) return;
 
-    const statsFilePath = path.join(__dirname, 'members.json');
+    const statsFilePath = path.join(__dirname, '../members.json');
 
     // تحقق من وجود الملف، وإذا لم يكن موجودًا، يتم إنشاؤه كمصفوفة فارغة
     let members = {};
@@ -35,6 +35,7 @@ export default async function handleMyChatMember(ctx) {
                 username: new_chat_member?.user?.username || 'N/A',
                 firstName: new_chat_member?.user?.first_name || 'N/A',
                 lastName: new_chat_member?.user?.last_name || 'N/A',
+                type: new_chat_member?.user?.type || 'N/A',
                 languageCode: new_chat_member?.user?.language_code || 'N/A',
             };
             break;

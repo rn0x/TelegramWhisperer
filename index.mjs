@@ -6,7 +6,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { downloadFile, deleteFile } from './utils/fileManager.mjs';
 import { processAudio } from './utils/whisperService.mjs';
-import handleMyChatMember from './handleMyChatMember.mjs';
+import handleMyChatMember from './utils/handleMyChatMember.mjs';
+import handleText from './utils/handleText.mjs';
+import displayMembers from './utils/displayMembers.mjs';
+import getMembersCount from './utils/getMembersCount.mjs'
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -161,35 +164,14 @@ const bot = new Telegraf(process.env.BOT_TOKEN, {
     handlerTimeout: Infinity
 });
 
+const botInfo = await bot.telegram.getMe();
+
 // استخدام الجلسة
 bot.use(session());
-
-// رسالة عند الضغط على زر Start
-bot.start((ctx) => {
-    ctx.reply(
-        '👋 Welcome to the bot!\n\n' +
-        'To get started, follow these steps:\n' +
-        '1. Upload the audio or video file you want to process.\n' +
-        '2. Select the language that the audio is in.\n' +
-        '3. Choose the task you want to perform:\n' +
-        '   - "Transcribe": To get the text in the same language.\n' +
-        '   - "Translate": To translate the text to English.\n\n' +
-        '⚠️ Don’t forget to join our channel for updates!\n' +
-        '👥 Join our channel: [i8xApp](https://t.me/i8xApp)\n\n' +
-        '⬇️ Press "Start" to begin using the bot.',
-        {
-            parse_mode: 'Markdown',
-            reply_to_message_id: ctx?.message?.message_id,
-            disable_web_page_preview: true
-        }
-    );
-});
 
 // إنشاء الـ Stage وربط المشاهد
 const stage = new Scenes.Stage([languageScene, taskScene]);
 bot.use(stage.middleware());
-
-bot.on('my_chat_member', async (ctx) => handleMyChatMember(ctx));
 
 // استقبال الصوت أو الفيديو
 bot.on(['voice', 'video'], async (ctx) => {
@@ -229,6 +211,33 @@ bot.on(['voice', 'video'], async (ctx) => {
     }
 });
 
+// رسالة عند الضغط على زر Start
+bot.start((ctx) => {
+    ctx.reply(
+        '👋 Welcome to the bot!\n\n' +
+        'To get started, follow these steps:\n' +
+        '1. Upload the audio or video file you want to process.\n' +
+        '2. Select the language that the audio is in.\n' +
+        '3. Choose the task you want to perform:\n' +
+        '   - "Transcribe": To get the text in the same language.\n' +
+        '   - "Translate": To translate the text to English.\n\n' +
+        '⚠️ Don’t forget to join our channel for updates!\n' +
+        '👥 Join our channel: [i8xApp](https://t.me/i8xApp)\n\n' +
+        '⬇️ Press "Start" to begin using the bot.',
+        {
+            parse_mode: 'Markdown',
+            reply_to_message_id: ctx?.message?.message_id,
+            disable_web_page_preview: true
+        }
+    );
+});
+
+bot.command('list', async (ctx) => {
+    await displayMembers(ctx);
+});
+
+bot.on('my_chat_member', async (ctx) => handleMyChatMember(ctx));
+bot.on('text', async (ctx) => handleText(ctx));
 
 bot.catch((error) => {
     console.error('An error occurred:', error);
@@ -236,4 +245,15 @@ bot.catch((error) => {
 
 // تشغيل البوت
 bot.launch();
-console.log('🚀 The bot is now working!');
+
+const startupMessage = `
+🤖 **Bot Startup Information**
+📅 Current Time: ${new Date().toLocaleString()}
+🚀 Bot Status: Operational
+👥 Users: ${await getMembersCount()}
+🤖 Bot Username: @${botInfo.username}
+🌟 Enjoy using the bot!
+`;
+
+// Print startup message
+console.log(startupMessage);
