@@ -1,0 +1,24 @@
+{
+  "name": "telegram-whisperer",
+  "version": "1.0.0",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node setupWhisper.mjs && node index.mjs"
+  },
+  "keywords": [],
+  "author": {
+    "name": "Ryan Almalki (rn0x)",
+    "email": "rn0x.me@gmail.com",
+    "url": "https://github.com/rn0x/TelegramWhisperer"
+  },
+  "license": "GPL-3.0-only",
+  "description": "A Telegram bot that converts audio to text using the Whisper model, with improvements in speed and accuracy. Users can send audio files to get translations or written texts quickly and efficiently.",
+  "dependencies": {
+    "7zip-bin": "^5.2.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "fs-extra": "^11.2.0",
+    "node-7z": "^3.0.0",
+    "telegraf": "^4.16.3"
+  }
+}
