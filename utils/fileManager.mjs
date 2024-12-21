@@ -1,6 +1,6 @@
 import fs from 'fs-extra'; 
-import path from 'path';
-import axios from 'axios';
+import path from 'node:path';
+import fetch from 'node-fetch';
 
 /**
  * التحقق من أن المجلد موجود، إذا لم يكن موجودًا يتم إنشاؤه.
@@ -61,35 +61,45 @@ export function validateAudioFileType(filePath, allowedExtensions = ['.wav', '.m
  * تنزيل ملف من رابط معين وحفظه في مسار معين.
  * @param {string} fileLink - رابط الملف.
  * @param {string} filePath - مسار حفظ الملف.
+ * @param {number} timeout - وقت المهلة للتنزيل (بالمللي ثانية).
  */
-export async function downloadFile(fileLink, filePath) {
+export async function downloadFile(fileLink, filePath, timeout = 600000) { // افتراضي:10 دقائق
   const dirPath = path.dirname(filePath);
 
+  // ضمان وجود المجلد الهدف
+  await ensureDirectoryExists(dirPath);
+
+  // إعداد المهلة
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
   try {
-    // ضمان أن المجلد موجود
-    await ensureDirectoryExists(dirPath);
+    // تنزيل الملف
+    const response = await fetch(fileLink, { signal: controller.signal });
 
-    // إرسال طلب لتحميل الملف
-    const response = await axios({
-      url: fileLink,
-      method: 'GET',
-      responseType: 'stream',
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.statusText}`);
+    }
+
+    // الكتابة باستخدام التدفق
+    return new Promise((resolve, reject) => {
+      const fileStream = fs.createWriteStream(filePath);
+      response.body.pipe(fileStream);
+
+      fileStream.on('finish', () => {
+        clearTimeout(timeoutId);
+        resolve();
+      });
+
+      fileStream.on('error', (error) => {
+        clearTimeout(timeoutId);
+        console.error(`Error while writing file to ${filePath}:`, error);
+        reject(error);
+      });
     });
-
-    // أنشئ Stream لكتابة البيانات إلى الملف
-    const writer = fs.createWriteStream(filePath);
-
-    // إنشاء Pipe بين استجابة Axios والملف
-    response.data.pipe(writer);
-
-    // ضمان أن عملية الكتابة قد انتهت أو فشلت
-    await new Promise((resolve, reject) => {
-      writer.on('finish', resolve);  // انتهت الكتابة بنجاح
-      writer.on('error', reject);    // حدث خطأ أثناء الكتابة
-    });
-
   } catch (error) {
-    console.error(`خطأ أثناء تنزيل الملف: ${fileLink}`, error);
+    clearTimeout(timeoutId);
+    console.error(`Error downloading file:`, error);
     throw error;
   }
 }
