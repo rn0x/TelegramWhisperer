@@ -119,12 +119,13 @@ const stage = new Scenes.Stage([languageScene, taskScene]);
 bot.use(stage.middleware());
 
 // استقبال الصوت أو الفيديو
-bot.on(['voice', 'video'], async (ctx) => {
-    const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id;
-    const fileType = ctx.message.voice ? 'voice' : 'video';
+// استقبال الصوت، الفيديو، أو ملفات الصوت الأخرى
+bot.on(['voice', 'video', 'audio'], async (ctx) => {
+    const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id || ctx.message.audio?.file_id;
+    const fileType = ctx.message.voice ? 'voice' : ctx.message.video ? 'video' : 'audio';
 
-    // الحصول على مدة الصوت أو الفيديو
-    const duration = ctx.message.voice?.duration || ctx.message.video?.duration; // بالثواني
+    // الحصول على مدة الملف
+    const duration = ctx.message.voice?.duration || ctx.message.video?.duration || ctx.message.audio?.duration; // بالثواني
 
     // تحقق إذا كانت المدة تتجاوز الحد المسموح به
     if (duration > MAX_DURATION_MINUTES * 60) {
@@ -139,7 +140,7 @@ bot.on(['voice', 'video'], async (ctx) => {
         const downloadsDir = path.join(__dirname, 'downloads');
         const filePath = path.join(
             downloadsDir,
-            `${fileId}.${fileType === 'voice' ? 'mp3' : 'mp4'}` // تحديد الامتداد بناءً على نوع الملف
+            `${fileId}.${fileType === 'voice' ? 'mp3' : fileType === 'video' ? 'mp4' : 'mp3'}` // تحديد الامتداد بناءً على نوع الملف
         );
 
         // تنزيل الملف
