@@ -40,7 +40,7 @@ export const processFile = async (bot, task) => {
                 // إرسال كل جزء على حدة
                 for (const chunk of chunks) {
                     await bot.telegram.sendMessage(task.user_id, chunk, {
-                        parse_mode: 'Markdown',
+                        // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
                     });
                     await bot.telegram.sendMessage(chat_id, text, { reply_to_message_id });
@@ -49,7 +49,7 @@ export const processFile = async (bot, task) => {
                 // إذا كان المحتوى أقل من الحد الأقصى، يتم إرساله كله في رسالة واحدة
                 await bot.telegram.sendMessage(task.user_id, fileContent,
                     {
-                        parse_mode: 'Markdown',
+                        // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
                     }
                 );

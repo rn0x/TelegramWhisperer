@@ -118,9 +118,8 @@ bot.use(session());
 const stage = new Scenes.Stage([languageScene, taskScene]);
 bot.use(stage.middleware());
 
-// استقبال الصوت أو الفيديو
 // استقبال الصوت، الفيديو، أو ملفات الصوت الأخرى
-bot.on(['voice', 'video', 'audio'], async (ctx) => {
+bot.on(['voice', 'video', 'audio'], async (ctx) => {    
     const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id || ctx.message.audio?.file_id;
     const fileType = ctx.message.voice ? 'voice' : ctx.message.video ? 'video' : 'audio';
 
@@ -153,7 +152,13 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
         ctx.scene.enter('languageScene');
     } catch (error) {
         console.error('Error handling file:', error);
-        ctx.reply('❌ An error occurred while uploading the file. Try again.');
+        // التعامل مع الخطأ عندما يكون حجم الملف كبير جدًا
+        if (error.response && error.response.description && error.response.description === 'Bad Request: file is too big') {
+            return ctx.reply('❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.');
+        }
+
+        // إذا كان هناك خطأ آخر
+        ctx.reply(`❌ An error occurred while uploading the file. Try again.${error?.response?.description ? error.response.description : error?.toString()}`);
     }
 });
 
@@ -167,6 +172,7 @@ bot.start((ctx) => {
         '3. Choose the task you want to perform:\n' +
         '   - "Transcribe": To get the text in the same language.\n' +
         '   - "Translate": To translate the text to English.\n\n' +
+        '⚠️ Note: Files larger than 20MB cannot be processed due to Telegram API limitations.\n' +
         '⚠️ Don’t forget to join our channel for updates!\n' +
         '👥 Join our channel: [i8xApp](https://t.me/i8xApp)\n\n' +
         '⬇️ Press "Start" to begin using the bot.',
