@@ -43,7 +43,6 @@ export const processFile = async (bot, task) => {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
                     });
-                    await bot.telegram.sendMessage(task.user_id, text, { reply_to_message_id });
                 }
             } else {
                 // إذا كان المحتوى أقل من الحد الأقصى، يتم إرساله كله في رسالة واحدة
