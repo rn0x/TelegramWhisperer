@@ -137,9 +137,9 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
 
         const fileSize = ctx.message.voice?.file_size || ctx.message.video?.file_size || ctx.message.audio?.file_size;
 
-        if (fileSize > 45 * 1024 * 1024) { // 45 ميجابايت
+        if (fileSize > 20 * 1024 * 1024) { // 20 ميجابايت
             return ctx.reply(
-                '❌ The file is too large. The maximum allowed size is 45MB. Please upload a smaller file.',
+                '❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.',
                 { reply_to_message_id: ctx?.message?.message_id }
             );
         }
