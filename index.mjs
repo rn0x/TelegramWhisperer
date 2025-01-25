@@ -23,7 +23,7 @@ const supportedLanguages = [
     'vi', 'yi', 'yo', 'yue', 'zh',
 ];
 // الحد الأقصى المسموح به للمدة (بالدقائق)
-const MAX_DURATION_MINUTES = 10; 
+const MAX_DURATION_MINUTES = 10;
 
 // إنشاء مشهد لاختيار اللغة
 const languageScene = new Scenes.BaseScene('languageScene');
@@ -119,22 +119,31 @@ const stage = new Scenes.Stage([languageScene, taskScene]);
 bot.use(stage.middleware());
 
 // استقبال الصوت، الفيديو، أو ملفات الصوت الأخرى
-bot.on(['voice', 'video', 'audio'], async (ctx) => {    
+bot.on(['voice', 'video', 'audio'], async (ctx) => {
     const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id || ctx.message.audio?.file_id;
     const fileType = ctx.message.voice ? 'voice' : ctx.message.video ? 'video' : 'audio';
 
-    // الحصول على مدة الملف
-    const duration = ctx.message.voice?.duration || ctx.message.video?.duration || ctx.message.audio?.duration; // بالثواني
-
-    // تحقق إذا كانت المدة تتجاوز الحد المسموح به
-    if (duration > MAX_DURATION_MINUTES * 60) {
-        return ctx.reply(
-            `❌ The file is too long. The maximum allowed duration is ${MAX_DURATION_MINUTES} minutes. Please upload a shorter file.`,
-            { reply_to_message_id: ctx?.message?.message_id }
-        );
-    }
-
     try {
+        // الحصول على مدة الملف
+        const duration = ctx.message.voice?.duration || ctx.message.video?.duration || ctx.message.audio?.duration; // بالثواني
+
+        // تحقق إذا كانت المدة تتجاوز الحد المسموح به
+        if (duration > MAX_DURATION_MINUTES * 60) {
+            return ctx.reply(
+                `❌ The file is too long. The maximum allowed duration is ${MAX_DURATION_MINUTES} minutes. Please upload a shorter file.`,
+                { reply_to_message_id: ctx?.message?.message_id }
+            );
+        }
+
+        const fileSize = ctx.message.voice?.file_size || ctx.message.video?.file_size || ctx.message.audio?.file_size;
+
+        if (fileSize > 45 * 1024 * 1024) { // 45 ميجابايت
+            return ctx.reply(
+                '❌ The file is too large. The maximum allowed size is 45MB. Please upload a smaller file.',
+                { reply_to_message_id: ctx?.message?.message_id }
+            );
+        }
+
         const fileLink = await ctx.telegram.getFileLink(fileId);
         const downloadsDir = path.join(__dirname, 'downloads');
         const filePath = path.join(
