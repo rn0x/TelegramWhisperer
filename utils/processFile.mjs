@@ -22,7 +22,7 @@ export const processFile = async (bot, task) => {
             await bot.telegram.sendDocument(task.user_id, {
                 source: result.path,
                 filename: path.basename(result.path),
-            }, { reply_to_message_id: task.message_id, });
+            }, { reply_to_message_id: task.message_id, }).catch((error) => console.error(`Failed to send File: ${error.message}`));
 
             // قراءة محتوى الملف
             const fileContent = await fs.readFile(result.path, 'utf-8');
@@ -42,7 +42,7 @@ export const processFile = async (bot, task) => {
                     await bot.telegram.sendMessage(task.user_id, chunk, {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
-                    });
+                    }).catch((error) => console.error(`Failed to send message: ${error.message}`));
                 }
             } else {
                 // إذا كان المحتوى أقل من الحد الأقصى، يتم إرساله كله في رسالة واحدة
@@ -51,7 +51,7 @@ export const processFile = async (bot, task) => {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
                     }
-                );
+                ).catch((error) => console.error(`Failed to send message: ${error.message}`));
             }
 
             // حذف الملف المؤقت بعد الإرسال
@@ -64,12 +64,12 @@ export const processFile = async (bot, task) => {
                     reply_to_message_id: task.message_id,
                     disable_web_page_preview: true
                 }
-            );
+            ).catch((error) => console.error(`Failed to send message: ${error.message}`));
         } else {
-            await bot.telegram.sendMessage(task.user_id, '❌ Error occurred while processing the file.');
+            await bot.telegram.sendMessage(task.user_id, '❌ Error occurred while processing the file.').catch((error) => console.error(`Failed to send message: ${error.message}`));
         }
     } catch (error) {
         console.error('Error during processing:', error);
-        await bot.telegram.sendMessage(task.user_id, '❌ An error occurred while processing the file. Please try again.');
+        await bot.telegram.sendMessage(task.user_id, '❌ An error occurred while processing the file. Please try again.').catch((error) => console.error(`Failed to send message: ${error.message}`));
     }
 };
