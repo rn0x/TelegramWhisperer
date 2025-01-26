@@ -35,7 +35,7 @@ languageScene.enter(async (ctx) => {
         {
             reply_to_message_id: ctx?.message?.message_id
         }
-    ).catch((error) => console.error(`Failed to send message: ${error.message}`));
+    ).catch((error) => console.error(`Failed to send message: `, error));
 });
 
 languageScene.on('text', async (ctx) => {
@@ -44,7 +44,7 @@ languageScene.on('text', async (ctx) => {
     if (!supportedLanguages.includes(language)) {
         return await ctx.reply('❌ Invalid language. Please choose a supported language.', {
             reply_to_message_id: ctx?.message?.message_id
-        }).catch((error) => console.error(`Failed to send message: ${error.message}`));
+        }).catch((error) => console.error(`Failed to send message: `, error));
     }
 
     ctx.session.language = language;
@@ -62,7 +62,7 @@ taskScene.enter(async (ctx) => {
         {
             reply_to_message_id: ctx?.message?.message_id
         }
-    ).catch((error) => console.error(`Failed to send message: ${error.message}`));
+    ).catch((error) => console.error(`Failed to send message: `, error));
 });
 
 taskScene.on('text', async (ctx) => {
@@ -71,7 +71,7 @@ taskScene.on('text', async (ctx) => {
     if (task !== 'transcribe' && task !== 'translate') {
         return await ctx.reply('❌ Invalid task. Please choose either "Transcribe" or "Translate".', {
             reply_to_message_id: ctx?.message?.message_id
-        }).catch((error) => console.error(`Failed to send message: ${error.message}`));
+        }).catch((error) => console.error(`Failed to send message: `, error));
     }
 
     ctx.session.task = task === 'transcribe' ? 'transcribe' : 'translate';
@@ -81,13 +81,13 @@ taskScene.on('text', async (ctx) => {
     if (!fileData || !language) {
         await ctx.reply('❌ An error occurred! Please upload the file again.', {
             reply_to_message_id: ctx?.message?.message_id
-        }).catch((error) => console.error(`Failed to send message: ${error.message}`));
+        }).catch((error) => console.error(`Failed to send message: `, error));
         return ctx.scene.leave();
     }
 
     await ctx.reply('🔄 Processing the file, please wait...', {
         reply_to_message_id: ctx?.message?.message_id
-    }).catch((error) => console.error(`Failed to send message: ${error.message}`));
+    }).catch((error) => console.error(`Failed to send message: `, error));
 
     // إضافة المهمة إلى قاعدة البيانات
     const taskObj = {
@@ -132,7 +132,7 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
             return await ctx.reply(
                 `❌ The file is too long. The maximum allowed duration is ${MAX_DURATION_MINUTES} minutes. Please upload a shorter file.`,
                 { reply_to_message_id: ctx?.message?.message_id }
-            ).catch((error) => console.error(`Failed to send message: ${error.message}`));
+            ).catch((error) => console.error(`Failed to send message: `, error));
         }
 
         const fileSize = ctx.message.voice?.file_size || ctx.message.video?.file_size || ctx.message.audio?.file_size;
@@ -141,7 +141,7 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
             return await ctx.reply(
                 '❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.',
                 { reply_to_message_id: ctx?.message?.message_id }
-            ).catch((error) => console.error(`Failed to send message: ${error.message}`));
+            ).catch((error) => console.error(`Failed to send message: `, error));
         }
 
         const fileLink = await ctx.telegram.getFileLink(fileId);
@@ -163,11 +163,11 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
         console.error('Error handling file:', error);
         // التعامل مع الخطأ عندما يكون حجم الملف كبير جدًا
         if (error.response && error.response.description && error.response.description === 'Bad Request: file is too big') {
-            return await ctx.reply('❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.').catch((error) => console.error(`Failed to send message: ${error.message}`));;
+            return await ctx.reply('❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.').catch((error) => console.error(`Failed to send message: `, error));;
         }
 
         // إذا كان هناك خطأ آخر
-        await ctx.reply(`❌ An error occurred while uploading the file. Try again.${error?.response?.description ? error.response.description : error?.toString()}`).catch((error) => console.error(`Failed to send message: ${error.message}`));
+        await ctx.reply(`❌ An error occurred while uploading the file. Try again.${error?.response?.description ? error.response.description : error?.toString()}`).catch((error) => console.error(`Failed to send message: `, error));
     }
 });
 
@@ -190,7 +190,7 @@ bot.start(async (ctx) => {
             reply_to_message_id: ctx?.message?.message_id,
             disable_web_page_preview: true
         }
-    ).catch((error) => console.error(`Failed to send message: ${error.message}`));
+    ).catch((error) => console.error(`Failed to send message: `, error));
 });
 
 bot.command('list', async (ctx) => {
