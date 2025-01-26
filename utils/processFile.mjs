@@ -22,7 +22,7 @@ export const processFile = async (bot, task) => {
             await bot.telegram.sendDocument(task.user_id, {
                 source: result.path,
                 filename: path.basename(result.path),
-            }, { reply_to_message_id: task.message_id, }).catch((error) => console.error(`Failed to send File: ${error.message}`));
+            }, { reply_to_message_id: task.message_id, });
 
             // قراءة محتوى الملف
             const fileContent = await fs.readFile(result.path, 'utf-8');
@@ -42,7 +42,7 @@ export const processFile = async (bot, task) => {
                     await bot.telegram.sendMessage(task.user_id, chunk, {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
-                    }).catch((error) => console.error(`Failed to send message: `, error));
+                    });
                 }
             } else {
                 // إذا كان المحتوى أقل من الحد الأقصى، يتم إرساله كله في رسالة واحدة
@@ -51,7 +51,7 @@ export const processFile = async (bot, task) => {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
                     }
-                ).catch((error) => console.error(`Failed to send message: `, error));
+                );
             }
 
             // حذف الملف المؤقت بعد الإرسال
@@ -64,9 +64,9 @@ export const processFile = async (bot, task) => {
                     reply_to_message_id: task.message_id,
                     disable_web_page_preview: true
                 }
-            ).catch((error) => console.error(`Failed to send message: `, error));
+            );
         } else {
-            await bot.telegram.sendMessage(task.user_id, '❌ Error occurred while processing the file.').catch((error) => console.error(`Failed to send message: `, error));
+            await bot.telegram.sendMessage(task.user_id, '❌ Error occurred while processing the file.');
         }
     } catch (error) {
         console.error('Error during processing:', error);

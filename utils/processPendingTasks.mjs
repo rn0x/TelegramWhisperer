@@ -15,6 +15,7 @@ export const processPendingTasks = async (bot) => {
                 await deleteTask(task.task_id);
             } catch (error) {
                 console.error('Error during task processing:', error);
+                await deleteTask(task.task_id);
                 // حتى لو حدث خطأ، لا نوقف باقي المهام، ويمكنك التعامل مع الأخطاء حسب الحاجة
             }
         }
