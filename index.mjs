@@ -28,23 +28,23 @@ const MAX_DURATION_MINUTES = 10;
 // إنشاء مشهد لاختيار اللغة
 const languageScene = new Scenes.BaseScene('languageScene');
 
-languageScene.enter((ctx) => {
-    ctx.reply(
+languageScene.enter(async (ctx) => {
+    return await ctx.reply(
         'Please select the language of the audio from the list below (e.g., "ar" for Arabic):\n' +
         supportedLanguages.join(', '),
         {
             reply_to_message_id: ctx?.message?.message_id
         }
-    );
+    ).catch((error) => console.error(`Failed to send message: ${error.message}`));
 });
 
-languageScene.on('text', (ctx) => {
+languageScene.on('text', async (ctx) => {
     const language = ctx.message.text.trim().toLowerCase(); // تجاهل حالة الأحرف
 
     if (!supportedLanguages.includes(language)) {
-        return ctx.reply('❌ Invalid language. Please choose a supported language.', {
+        return await ctx.reply('❌ Invalid language. Please choose a supported language.', {
             reply_to_message_id: ctx?.message?.message_id
-        });
+        }).catch((error) => console.error(`Failed to send message: ${error.message}`));
     }
 
     ctx.session.language = language;
@@ -54,24 +54,24 @@ languageScene.on('text', (ctx) => {
 // إنشاء مشهد لاختيار المهمة
 const taskScene = new Scenes.BaseScene('taskScene');
 
-taskScene.enter((ctx) => {
-    ctx.reply(
+taskScene.enter(async (ctx) => {
+    await ctx.reply(
         'Choose the task you want to perform:\n' +
         '1. Transcribe to the same language (type: "Transcribe").\n' +
         '2. Translate to English (type: "Translate").',
         {
             reply_to_message_id: ctx?.message?.message_id
         }
-    );
+    ).catch((error) => console.error(`Failed to send message: ${error.message}`));
 });
 
 taskScene.on('text', async (ctx) => {
     const task = ctx.message.text.trim().toLowerCase(); // تجاهل حالة الأحرف
 
     if (task !== 'transcribe' && task !== 'translate') {
-        return ctx.reply('❌ Invalid task. Please choose either "Transcribe" or "Translate".', {
+        return await ctx.reply('❌ Invalid task. Please choose either "Transcribe" or "Translate".', {
             reply_to_message_id: ctx?.message?.message_id
-        });
+        }).catch((error) => console.error(`Failed to send message: ${error.message}`));
     }
 
     ctx.session.task = task === 'transcribe' ? 'transcribe' : 'translate';
@@ -79,15 +79,15 @@ taskScene.on('text', async (ctx) => {
     const { fileData, language } = ctx.session;
 
     if (!fileData || !language) {
-        ctx.reply('❌ An error occurred! Please upload the file again.', {
+        await ctx.reply('❌ An error occurred! Please upload the file again.', {
             reply_to_message_id: ctx?.message?.message_id
-        });
+        }).catch((error) => console.error(`Failed to send message: ${error.message}`));
         return ctx.scene.leave();
     }
 
     await ctx.reply('🔄 Processing the file, please wait...', {
         reply_to_message_id: ctx?.message?.message_id
-    });
+    }).catch((error) => console.error(`Failed to send message: ${error.message}`));
 
     // إضافة المهمة إلى قاعدة البيانات
     const taskObj = {
@@ -129,19 +129,19 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
 
         // تحقق إذا كانت المدة تتجاوز الحد المسموح به
         if (duration > MAX_DURATION_MINUTES * 60) {
-            return ctx.reply(
+            return await ctx.reply(
                 `❌ The file is too long. The maximum allowed duration is ${MAX_DURATION_MINUTES} minutes. Please upload a shorter file.`,
                 { reply_to_message_id: ctx?.message?.message_id }
-            );
+            ).catch((error) => console.error(`Failed to send message: ${error.message}`));
         }
 
         const fileSize = ctx.message.voice?.file_size || ctx.message.video?.file_size || ctx.message.audio?.file_size;
 
         if (fileSize > 20 * 1024 * 1024) { // 20 ميجابايت
-            return ctx.reply(
+            return await ctx.reply(
                 '❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.',
                 { reply_to_message_id: ctx?.message?.message_id }
-            );
+            ).catch((error) => console.error(`Failed to send message: ${error.message}`));
         }
 
         const fileLink = await ctx.telegram.getFileLink(fileId);
@@ -163,17 +163,17 @@ bot.on(['voice', 'video', 'audio'], async (ctx) => {
         console.error('Error handling file:', error);
         // التعامل مع الخطأ عندما يكون حجم الملف كبير جدًا
         if (error.response && error.response.description && error.response.description === 'Bad Request: file is too big') {
-            return ctx.reply('❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.');
+            return await ctx.reply('❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.').catch((error) => console.error(`Failed to send message: ${error.message}`));;
         }
 
         // إذا كان هناك خطأ آخر
-        ctx.reply(`❌ An error occurred while uploading the file. Try again.${error?.response?.description ? error.response.description : error?.toString()}`);
+        await ctx.reply(`❌ An error occurred while uploading the file. Try again.${error?.response?.description ? error.response.description : error?.toString()}`).catch((error) => console.error(`Failed to send message: ${error.message}`));
     }
 });
 
 // رسالة عند الضغط على زر Start
-bot.start((ctx) => {
-    ctx.reply(
+bot.start(async (ctx) => {
+    await ctx.reply(
         '👋 Welcome to the bot!\n\n' +
         'To get started, follow these steps:\n' +
         '1. Upload the audio or video file you want to process.\n' +
@@ -190,7 +190,7 @@ bot.start((ctx) => {
             reply_to_message_id: ctx?.message?.message_id,
             disable_web_page_preview: true
         }
-    );
+    ).catch((error) => console.error(`Failed to send message: ${error.message}`));
 });
 
 bot.command('list', async (ctx) => {

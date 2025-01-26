@@ -16,7 +16,7 @@ export default async function displayMembers(ctx) {
 
         // إذا لم يوجد أعضاء
         if (Object.keys(members).length === 0) {
-            return ctx.reply('❌ No members found in the bot.');
+            return await ctx.reply('❌ No members found in the bot.').catch((error) => console.error(`Failed to send message: ${error.message}`));;
         }
 
         let membersList = `👥 Total number of users: ${Object.keys(members).length}\n\n`;
@@ -42,17 +42,17 @@ export default async function displayMembers(ctx) {
 
             // إذا كانت الرسالة كبيرة جدًا، نقوم بإرسالها الآن ثم نبدأ رسالة جديدة
             if (membersList.length > 4000) {
-                await ctx.reply(membersList);
+                await ctx.reply(membersList).catch((error) => console.error(`Failed to send message: ${error.message}`));;
                 membersList = ''; // إعادة تعيين القائمة
             }
         }
 
         // إرسال الرسالة المتبقية
         if (membersList.length > 0) {
-            await ctx.reply(membersList);
+            await ctx.reply(membersList).catch((error) => console.error(`Failed to send message: ${error.message}`));;
         }
     } catch (error) {
         console.error('Error displaying members:', error);
-        await ctx.reply('❌ An error occurred while displaying the members.');
+        await ctx.reply('❌ An error occurred while displaying the members.').catch((error) => console.error(`Failed to send message: ${error.message}`));;
     }
 };
