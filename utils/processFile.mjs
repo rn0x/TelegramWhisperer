@@ -3,6 +3,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { processAudio } from './whisperService.mjs';
 import { deleteFile } from './fileManager.mjs';
+import { safeSendMessage, safeSendDocument } from './safeSendUtils.mjs';
 
 export const processFile = async (bot, task) => {
     try {
@@ -19,7 +20,7 @@ export const processFile = async (bot, task) => {
 
         if (result?.path && fs.existsSync(result?.path)) {
             // إرسال الملف أولاً
-            await bot.telegram.sendDocument(task.user_id, {
+            await safeSendDocument(bot, task.user_id, {
                 source: result.path,
                 filename: path.basename(result.path),
             }, { reply_to_message_id: task.message_id, });
@@ -39,14 +40,14 @@ export const processFile = async (bot, task) => {
 
                 // إرسال كل جزء على حدة
                 for (const chunk of chunks) {
-                    await bot.telegram.sendMessage(task.user_id, chunk, {
+                    await safeSendMessage(bot, task.user_id, chunk, {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
                     });
                 }
             } else {
                 // إذا كان المحتوى أقل من الحد الأقصى، يتم إرساله كله في رسالة واحدة
-                await bot.telegram.sendMessage(task.user_id, fileContent,
+                await safeSendMessage(bot, task.user_id, fileContent,
                     {
                         // parse_mode: 'Markdown',
                         reply_to_message_id: task.message_id,
@@ -56,7 +57,7 @@ export const processFile = async (bot, task) => {
 
             // حذف الملف المؤقت بعد الإرسال
             await deleteFile(result.path);
-            await bot.telegram.sendMessage(task.user_id,
+            await safeSendMessage(bot, task.user_id,
                 '✅ The file has been processed successfully!\n' +
                 '👥 [Join our channel](https://t.me/i8xApp) to continue using the bot and get more updates.',
                 {
@@ -66,10 +67,10 @@ export const processFile = async (bot, task) => {
                 }
             );
         } else {
-            await bot.telegram.sendMessage(task.user_id, '❌ Error occurred while processing the file.');
+            await safeSendMessage(bot, task.user_id, '❌ Error occurred while processing the file.');
         }
     } catch (error) {
         console.error('Error during processing:', error);
-        await bot.telegram.sendMessage(task.user_id, '❌ An error occurred while processing the file. Please try again.').catch((error) => console.error(`Failed to send message: `, error));
+        await safeSendMessage(bot, task.user_id, '❌ An error occurred while processing the file. Please try again.').catch((error) => console.error(`Failed to send message: `, error));
     }
 };
