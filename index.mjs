@@ -1,5 +1,3 @@
-import dotenv from 'dotenv';
-dotenv.config();
 import { Telegraf, session, Scenes } from 'telegraf';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,10 +5,12 @@ import { downloadFile } from './utils/fileManager.mjs';
 import handleMyChatMember from './utils/handleMyChatMember.mjs';
 import handleText from './utils/handleText.mjs';
 import displayMembers from './utils/displayMembers.mjs';
-import getMembersCount from './utils/getMembersCount.mjs'
+import getMembersCount from './utils/getMembersCount.mjs';
 import { saveTask } from './utils/taskManager.mjs';
 import { processPendingTasks } from './utils/processPendingTasks.mjs';
 import setupErrorHandler from './utils/errorHandler.mjs';
+import config from './config.mjs';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,59 +23,63 @@ const supportedLanguages = [
     'sl', 'sn', 'so', 'sq', 'sr', 'su', 'sv', 'sw', 'ta', 'te', 'tg', 'th', 'tk', 'tl', 'tr', 'tt', 'uk', 'ur', 'uz',
     'vi', 'yi', 'yo', 'yue', 'zh',
 ];
-// الحد الأقصى المسموح به للمدة (بالدقائق)
-const MAX_DURATION_MINUTES = 10;
 
-// إنشاء مشهد لاختيار اللغة
+const MAX_DURATION_MINUTES = 10;
+const MAX_FILE_SIZE_MB = 20;
+
+const bot = new Telegraf(config.BOT_TOKEN, {
+    handlerTimeout: Infinity
+});
+
+const botInfo = await bot.telegram.getMe();
+
+bot.use(session());
+
 const languageScene = new Scenes.BaseScene('languageScene');
+const taskScene = new Scenes.BaseScene('taskScene');
 
 languageScene.enter(async (ctx) => {
-    return await ctx.reply(
+    await ctx.reply(
         'Please select the language of the audio from the list below (e.g., "ar" for Arabic):\n' +
         supportedLanguages.join(', '),
-        {
-            reply_to_message_id: ctx?.message?.message_id
-        }
+        { reply_to_message_id: ctx?.message?.message_id }
     );
 });
 
 languageScene.on('text', async (ctx) => {
-    const language = ctx.message.text.trim().toLowerCase(); // تجاهل حالة الأحرف
+    const language = ctx.message.text.trim().toLowerCase();
 
     if (!supportedLanguages.includes(language)) {
-        return await ctx.reply('❌ Invalid language. Please choose a supported language.', {
+        await ctx.reply('❌ Invalid language. Please choose a supported language.', {
             reply_to_message_id: ctx?.message?.message_id
         });
+        return;
     }
 
     ctx.session.language = language;
     ctx.scene.enter('taskScene');
 });
 
-// إنشاء مشهد لاختيار المهمة
-const taskScene = new Scenes.BaseScene('taskScene');
-
 taskScene.enter(async (ctx) => {
     await ctx.reply(
         'Choose the task you want to perform:\n' +
         '1. Transcribe to the same language (type: "Transcribe").\n' +
         '2. Translate to English (type: "Translate").',
-        {
-            reply_to_message_id: ctx?.message?.message_id
-        }
+        { reply_to_message_id: ctx?.message?.message_id }
     );
 });
 
 taskScene.on('text', async (ctx) => {
-    const task = ctx.message.text.trim().toLowerCase(); // تجاهل حالة الأحرف
+    const task = ctx.message.text.trim().toLowerCase();
 
     if (task !== 'transcribe' && task !== 'translate') {
-        return await ctx.reply('❌ Invalid task. Please choose either "Transcribe" or "Translate".', {
+        await ctx.reply('❌ Invalid task. Please choose either "Transcribe" or "Translate".', {
             reply_to_message_id: ctx?.message?.message_id
         });
+        return;
     }
 
-    ctx.session.task = task === 'transcribe' ? 'transcribe' : 'translate';
+    ctx.session.task = task;
 
     const { fileData, language } = ctx.session;
 
@@ -90,14 +94,13 @@ taskScene.on('text', async (ctx) => {
         reply_to_message_id: ctx?.message?.message_id
     });
 
-    // إضافة المهمة إلى قاعدة البيانات
     const taskObj = {
         task_id: fileData.fileId,
         user_id: fileData.user_id,
         file_path: fileData.filePath,
         outputFormat: 'txt',
         language: language,
-        task_type: ctx.session.task,//'transcribe' أو 'translate' حسب الاختيار
+        task_type: ctx.session.task,
         message_id: fileData?.message_id
     };
 
@@ -105,74 +108,51 @@ taskScene.on('text', async (ctx) => {
     ctx.scene.leave();
 });
 
-// بوت تيليجرام
-const bot = new Telegraf(process.env.BOT_TOKEN, {
-    handlerTimeout: Infinity
-});
-
-const botInfo = await bot.telegram.getMe();
-
-// استخدام الجلسة
-bot.use(session());
-
-// إنشاء الـ Stage وربط المشاهد
 const stage = new Scenes.Stage([languageScene, taskScene]);
 bot.use(stage.middleware());
 
-// استقبال الصوت، الفيديو، أو ملفات الصوت الأخرى
 bot.on(['voice', 'video', 'audio'], async (ctx) => {
     const fileId = ctx.message.voice?.file_id || ctx.message.video?.file_id || ctx.message.audio?.file_id;
     const fileType = ctx.message.voice ? 'voice' : ctx.message.video ? 'video' : 'audio';
 
     try {
-        // الحصول على مدة الملف
-        const duration = ctx.message.voice?.duration || ctx.message.video?.duration || ctx.message.audio?.duration; // بالثواني
+        const duration = ctx.message.voice?.duration || ctx.message.video?.duration || ctx.message.audio?.duration;
 
-        // تحقق إذا كانت المدة تتجاوز الحد المسموح به
         if (duration > MAX_DURATION_MINUTES * 60) {
-            return await ctx.reply(
+            await ctx.reply(
                 `❌ The file is too long. The maximum allowed duration is ${MAX_DURATION_MINUTES} minutes. Please upload a shorter file.`,
                 { reply_to_message_id: ctx?.message?.message_id }
             );
+            return;
         }
 
         const fileSize = ctx.message.voice?.file_size || ctx.message.video?.file_size || ctx.message.audio?.file_size;
 
-        if (fileSize > 20 * 1024 * 1024) { // 20 ميجابايت
-            return await ctx.reply(
-                '❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.',
+        if (fileSize > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            await ctx.reply(
+                `❌ The file is too large. The maximum allowed size is ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`,
                 { reply_to_message_id: ctx?.message?.message_id }
             );
+            return;
         }
 
         const fileLink = await ctx.telegram.getFileLink(fileId);
         const downloadsDir = path.join(__dirname, 'downloads');
         const filePath = path.join(
             downloadsDir,
-            `${fileId}.${fileType === 'voice' ? 'mp3' : fileType === 'video' ? 'mp4' : 'mp3'}` // تحديد الامتداد بناءً على نوع الملف
+            `${fileId}.${fileType === 'voice' ? 'mp3' : fileType === 'video' ? 'mp4' : 'mp3'}`
         );
 
-        // تنزيل الملف
         await downloadFile(fileLink.href, filePath);
 
-        // تخزين بيانات الملف في الجلسة
         ctx.session.fileData = { filePath, fileType, fileId, message_id: ctx?.message?.message_id, user_id: ctx?.message?.chat?.id };
-
-        // بدء مشهد اختيار اللغة
         ctx.scene.enter('languageScene');
     } catch (error) {
         console.error('Error handling file:', error);
-        // التعامل مع الخطأ عندما يكون حجم الملف كبير جدًا
-        if (error.response && error.response.description && error.response.description === 'Bad Request: file is too big') {
-            return await ctx.reply('❌ The file is too large. The maximum allowed size is 20MB. Please upload a smaller file.').catch((error) => console.error(`Failed to send message: `, error));;
-        }
-
-        // إذا كان هناك خطأ آخر
         await ctx.reply(`❌ An error occurred while uploading the file. Try again.${error?.response?.description ? error.response.description : error?.toString()}`).catch((error) => console.error(`Failed to send message: `, error));
     }
 });
 
-// رسالة عند الضغط على زر Start
 bot.start(async (ctx) => {
     await ctx.reply(
         '👋 Welcome to the bot!\n\n' +
@@ -191,7 +171,7 @@ bot.start(async (ctx) => {
             reply_to_message_id: ctx?.message?.message_id,
             disable_web_page_preview: true
         }
-    )
+    );
 });
 
 bot.command('list', async (ctx) => {
@@ -201,10 +181,8 @@ bot.command('list', async (ctx) => {
 bot.on('my_chat_member', async (ctx) => handleMyChatMember(ctx));
 bot.on('text', async (ctx) => handleText(ctx));
 
-// إضافة المعالج للأخطاء
 setupErrorHandler(bot);
 
-// تشغيل البوت
 bot.launch();
 
 processPendingTasks(bot);
@@ -218,5 +196,4 @@ const startupMessage = `
 🌟 Enjoy using the bot!
 `;
 
-// Print startup message
 console.log(startupMessage);
